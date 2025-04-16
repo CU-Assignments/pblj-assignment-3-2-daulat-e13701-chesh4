@@ -1,0 +1,84 @@
+// Student.java
+package com.example.hibernate.entity;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "students")
+public class Student {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "id") private int id;
+    @Column(name = "name") private String name;
+    @Column(name = "age") private int age;
+    public Student() {} public Student(String name, int age) {this.name = name; this.age = age;}
+    public int getId() {return id;} public void setId(int id) {this.id = id;}
+    public String getName() {return name;} public void setName(String name) {this.name = name;}
+    public int getAge() {return age;} public void setAge(int age) {this.age = age;}
+    @Override public String toString() {return "Student{id=" + id + ", name='" + name + '\'' + ", age=" + age + '}';}
+}
+
+// hibernate.cfg.xml
+import org.hibernate.cfg.Configuration;
+import org.hibernate.SessionFactory;
+
+public class HibernateUtil {
+    private static final SessionFactory sessionFactory = buildSessionFactory();
+    private static SessionFactory buildSessionFactory() {
+        try { return new Configuration().configure().buildSessionFactory(); }
+        catch (Throwable ex) { System.err.println("Initial SessionFactory creation failed." + ex); throw new ExceptionInInitializerError(ex); }
+    }
+    public static SessionFactory getSessionFactory() {return sessionFactory;}
+    public static void shutdown() {getSessionFactory().close();}
+}
+
+// StudentDAO.java
+package com.example.hibernate.dao;
+
+import com.example.hibernate.entity.Student;
+import com.example.hibernate.util.HibernateUtil;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+
+public class StudentDAO {
+    public void saveStudent(Student student) {Transaction transaction = null; try (Session session = HibernateUtil.getSessionFactory().openSession()) {transaction = session.beginTransaction(); session.persist(student); transaction.commit();} catch (Exception e) {if (transaction != null) transaction.rollback(); e.printStackTrace();}}
+    public Student getStudent(int id) {try (Session session = HibernateUtil.getSessionFactory().openSession()) {return session.get(Student.class, id);} catch (Exception e) {e.printStackTrace(); return null;}}
+    public void updateStudent(Student student) {Transaction transaction = null; try (Session session = HibernateUtil.getSessionFactory().openSession()) {transaction = session.beginTransaction(); session.merge(student); transaction.commit();} catch (Exception e) {if (transaction != null) transaction.rollback(); e.printStackTrace();}}
+    public void deleteStudent(int id) {Transaction transaction = null; try (Session session = HibernateUtil.getSessionFactory().openSession()) {transaction = session.beginTransaction(); Student student = session.get(Student.class, id); if (student != null) session.remove(student); transaction.commit();} catch (Exception e) {if (transaction != null) transaction.rollback(); e.printStackTrace();}}
+}
+
+// MainApp.java
+package com.example.hibernate;
+
+import com.example.hibernate.dao.StudentDAO;
+import com.example.hibernate.entity.Student;
+import com.example.hibernate.util.HibernateUtil;
+
+public class MainApp {
+    public static void main(String[] args) {
+        StudentDAO studentDAO = new StudentDAO();
+        Student student1 = new Student("Alice", 20); studentDAO.saveStudent(student1); System.out.println("Saved student: " + student1);
+        Student student2 = new Student("Bob", 22); studentDAO.saveStudent(student2); System.out.println("Saved student: " + student2);
+        Student retrievedStudent = studentDAO.getStudent(student1.getId()); System.out.println("Retrieved student: " + retrievedStudent);
+        if (retrievedStudent != null) {retrievedStudent.setAge(21); studentDAO.updateStudent(retrievedStudent); System.out.println("Updated student: " + retrievedStudent);}
+        Student updatedStudent = studentDAO.getStudent(student1.getId()); System.out.println("Retrieved updated student: " + updatedStudent);
+        if (student2 != null) {studentDAO.deleteStudent(student2.getId()); System.out.println("Deleted student with ID: " + student2.getId());}
+        Student deletedStudent = studentDAO.getStudent(student2.getId()); System.out.println("Attempt to retrieve deleted student: " + deletedStudent);
+        HibernateUtil.shutdown();
+    }
+}
+
+<!DOCTYPE hibernate-configuration PUBLIC
+        "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+        "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+    <session-factory>
+        <property name="connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+        <property name="connection.url">jdbc:mysql://localhost:3306/hibernate_crud_db?createDatabaseIfNotExist=true&amp;serverTimezone=UTC</property>
+        <property name="connection.username">your_username</property>
+        <property name="connection.password">your_password</property>
+        <property name="dialect">org.hibernate.dialect.MySQLDialect</property>
+        <property name="current_session_context_class">thread</property>
+        <property name="show_sql">true</property>
+        <property name="hbm2ddl.auto">update</property>
+        <mapping class="com.example.hibernate.entity.Student"/>
+    </session-factory>
+</hibernate-configuration>
